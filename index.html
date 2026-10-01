@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="color-scheme" content="dark"><title>Install Nezuko</title>
+<style>body{margin:0;background:#17141b;color:#f7f1f5;font:16px/1.6 system-ui,sans-serif;display:grid;min-height:100dvh;place-items:center}main{max-width:480px;padding:40px 24px}small{color:#e69db9;letter-spacing:.12em}h1{font-size:40px;line-height:1.15;margin:16px 0}p,li{color:#c8bcc8}ol{padding-left:22px;margin:28px 0}button,a.primary{display:inline-block;background:#f1a7c4;color:#24141e;border:0;border-radius:10px;padding:14px 22px;font:600 16px system-ui;cursor:pointer;text-decoration:none}a{color:#edb9ce}footer{margin-top:30px;font-size:13px;color:#a99baa}button:focus-visible,a:focus-visible{outline:3px solid white;outline-offset:4px}</style></head>
+<body><main><small>NEZUKO · DISCORD</small><h1 id="title">Bring Nezuko along.</h1><p id="status" role="status">Add Nezuko to your server and your apps, then visit our community.</p><ol><li>Add to your server</li><li>Add to your apps for supported commands in DMs</li><li>Open the Nezuko community invite</li></ol><button id="start">Start installation</button> <a id="community" href="https://discord.gg/nezuko" rel="noreferrer">Community only</a><footer>Discord asks you to approve each installation separately. You can cancel at any step.</footer><noscript><p>JavaScript is required for the guided installation.</p></noscript></main>
+<script>
+'use strict';
+const CLIENT_ID='623481583411658753';
+const CALLBACK='https://sergioitis.github.io/nezuko-install/';
+const INVITE='https://discord.gg/nezuko';
+const KEY='nezuko-install-pending-v1';
+const statusEl=document.getElementById('status');
+const start=document.getElementById('start');
+function begin(step){
+ const state=crypto.randomUUID();
+ sessionStorage.setItem(KEY,JSON.stringify({state,step,created:Date.now()}));
+ const url=new URL('https://discord.com/oauth2/authorize');
+ const params={client_id:CLIENT_ID,response_type:'code',redirect_uri:CALLBACK,integration_type:step===1?'0':'1',scope:step===1?'guilds email bot guilds.join applications.commands':'applications.commands',state};
+ if(step===1)params.permissions='8';
+ url.search=new URLSearchParams(params).toString();
+ location.replace(url.href);
+}
+function fail(message){statusEl.textContent=message;start.hidden=false;start.textContent='Restart installation';}
+start.addEventListener('click',()=>{try{begin(1)}catch{fail('Enable browser storage and open this page in a regular browser tab to continue.')}});
+(function(){
+ const query=new URLSearchParams(location.search);
+ const isCallback=query.has('code')||query.has('error')||query.has('state');
+ if(!isCallback)return;
+ // Remove OAuth response values before any navigation; never log or forward codes.
+ history.replaceState(null,'',location.pathname);
+ let pending;
+ try{pending=JSON.parse(sessionStorage.getItem(KEY));sessionStorage.removeItem(KEY)}
+ catch{fail('This installation session could not be restored. Please restart.');return}
+ if(!pending||!query.get('state')||query.get('state')!==pending.state||Date.now()-pending.created>30*60*1000||![1,2].includes(pending.step)){fail('This installation link expired or belongs to another browser tab. Please restart.');return}
+ if(query.has('error')){fail('Installation was cancelled or declined. You can restart or open the community invite.');return}
+ if(!query.get('code')){fail('Discord did not return an authorization response. Please restart.');return}
+ start.hidden=true;
+ if(pending.step===1){
+ statusEl.textContent='Continuing to Discord to add Nezuko to your apps…';
+ try{begin(2)}catch{fail('Unable to continue. Enable browser storage and restart.')}
+ }else{
+ statusEl.textContent='Opening the Nezuko community invite…';
+ location.replace(INVITE);
+ }
+})();
+</script></body></html>
